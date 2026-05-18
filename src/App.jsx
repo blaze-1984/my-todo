@@ -1,14 +1,17 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 
 const CATEGORIES = ["All", "Work", "Personal", "Urgent"];
-const CATEGORY_COLORS = { Work: "#6ee7f7", Personal: "#a5f3a0", Urgent: "#f97373" };
+const CATEGORY_COLORS = { Work: "#6ee7f7", Personal: "#3db870", Urgent: "#e05555" };
+const CATEGORY_COLORS_LIGHT = { Work: "#0891b2", Personal: "#16a34a", Urgent: "#dc2626" };
 const PRIORITIES = ["low", "medium", "high"];
-const PRIORITY_COLORS = { low: "#555", medium: "#f0c060", high: "#f97373" };
+const PRIORITY_COLORS = { low: "#999", medium: "#d97706", high: "#e05555" };
+const PRIORITY_COLORS_LIGHT = { low: "#777", medium: "#b45309", high: "#dc2626" };
 const PRIORITY_LABELS = { low: "▽ Low", medium: "◈ Med", high: "▲ High" };
 
 function generateId() { return Math.random().toString(36).slice(2, 10); }
 
-const STORAGE_KEY = "blaze_tasks_v1";
+const STORAGE_KEY = "blaze_tasks_v2";
+const THEME_KEY = "blaze_theme";
 
 const defaultTasks = [
   { id: generateId(), text: "Review onboarding process doc", done: false, category: "Work", priority: "medium", due: "" },
@@ -18,29 +21,27 @@ const defaultTasks = [
 ];
 
 function loadTasks() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : defaultTasks;
-  } catch { return defaultTasks; }
+  try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : defaultTasks; } catch { return defaultTasks; }
 }
-
-function isOverdue(due) {
-  if (!due) return false;
-  return new Date(due) < new Date(new Date().toDateString());
+function loadTheme() {
+  try { return localStorage.getItem(THEME_KEY) || "dark"; } catch { return "dark"; }
 }
-
+function isOverdue(due) { if (!due) return false; return new Date(due) < new Date(new Date().toDateString()); }
 function formatDue(due) {
   if (!due) return null;
   const d = new Date(due);
   const today = new Date(new Date().toDateString());
   const diff = Math.round((d - today) / 86400000);
-  if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, color: "#f97373" };
-  if (diff === 0) return { label: "Today", color: "#f0c060" };
-  if (diff === 1) return { label: "Tomorrow", color: "#a5f3a0" };
-  return { label: d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }), color: "#666" };
+  if (diff < 0) return { label: `${Math.abs(diff)}d overdue`, color: "#e05555" };
+  if (diff === 0) return { label: "Today", color: "#d97706" };
+  if (diff === 1) return { label: "Tomorrow", color: "#3db870" };
+  return { label: d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }), color: "#888" };
 }
 
 export default function TodoApp() {
+  const [theme, setTheme] = useState(loadTheme);
+  const dark = theme === "dark";
+
   const [tasks, setTasksRaw] = useState(loadTasks);
   const [input, setInput] = useState("");
   const [newCat, setNewCat] = useState("Work");
@@ -55,6 +56,12 @@ export default function TodoApp() {
   const inputRef = useRef(null);
   const editRef = useRef(null);
 
+  const toggleTheme = () => {
+    const next = dark ? "light" : "dark";
+    setTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch {}
+  };
+
   const setTasks = useCallback((val) => {
     setTasksRaw(prev => {
       const next = typeof val === "function" ? val(prev) : val;
@@ -63,16 +70,13 @@ export default function TodoApp() {
     });
   }, []);
 
-  useEffect(() => {
-    if (editingId && editRef.current) editRef.current.focus();
-  }, [editingId]);
+  useEffect(() => { if (editingId && editRef.current) editRef.current.focus(); }, [editingId]);
 
   const addTask = () => {
     const trimmed = input.trim();
     if (!trimmed) return;
     setTasks(prev => [{ id: generateId(), text: trimmed, done: false, category: newCat, priority: newPriority, due: newDue }, ...prev]);
-    setInput(""); setNewDue("");
-    inputRef.current?.focus();
+    setInput(""); setNewDue(""); inputRef.current?.focus();
   };
 
   const toggleDone = (id) => setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
@@ -112,122 +116,111 @@ export default function TodoApp() {
   const done = filtered.filter(t => t.done).length;
   const total = filtered.length;
 
+  // Theme values
+  const bg = dark ? "#0f0f13" : "#f4f4f8";
+  const cardBg = dark ? "#16161d" : "#ffffff";
+  const border = dark ? "#222" : "#e2e2e8";
+  const borderHover = dark ? "#333" : "#c0c0cc";
+  const textPrimary = dark ? "#e8e8f0" : "#1a1a2e";
+  const textSecondary = dark ? "#888" : "#666";
+  const inputBg = dark ? "#16161d" : "#ffffff";
+  const inputBorder = dark ? "#2a2a35" : "#ddd";
+  const focusBorder = dark ? "#6ee7f7" : "#0891b2";
+  const filterActiveBg = dark ? "#1e1e2a" : "#e0f2fe";
+  const filterActiveColor = dark ? "#6ee7f7" : "#0891b2";
+  const filterActiveBorder = dark ? "#6ee7f7" : "#0891b2";
+  const progressBg = dark ? "#1e1e2a" : "#e2e8f0";
+  const catColors = dark ? CATEGORY_COLORS : CATEGORY_COLORS_LIGHT;
+  const priColors = dark ? PRIORITY_COLORS : PRIORITY_COLORS_LIGHT;
+  const editBg = dark ? "#1e1e2a" : "#f0f9ff";
+  const hintColor = dark ? "#2a2a35" : "#ccc";
+  const iconColor = dark ? "#444" : "#bbb";
+  const dragHandleColor = dark ? "#333" : "#ccc";
+  const addBtnBg = dark ? "#6ee7f7" : "#0891b2";
+  const addBtnColor = dark ? "#0f0f13" : "#ffffff";
+
   return (
-    <div style={{ minHeight: "100vh", background: "#0f0f13", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", fontFamily: "'DM Mono', 'Courier New', monospace" }}>
+    <div style={{ minHeight: "100vh", background: bg, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", fontFamily: "'DM Mono', 'Courier New', monospace", transition: "background 0.3s" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@700;800&display=swap');
         * { box-sizing: border-box; }
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-
-        .task-row { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: #16161d; border: 1px solid #222; border-radius: 10px; margin-bottom: 6px; transition: border-color 0.2s, box-shadow 0.2s, opacity 0.2s; animation: fadeIn 0.22s ease; cursor: grab; user-select: none; }
-        .task-row:hover { border-color: #333; box-shadow: 0 2px 16px rgba(0,0,0,0.35); }
-        .task-row.done-row { opacity: 0.4; }
-        .task-row.dragging { opacity: 0.3; border-style: dashed; border-color: #444; }
-        .task-row.drag-over { border-color: #6ee7f7; box-shadow: 0 0 0 2px #6ee7f722; }
-        .task-row.overdue-row { border-left: 3px solid #f9737388; }
-
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 2px; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-        .drag-handle { color: #333; font-size: 14px; cursor: grab; flex-shrink: 0; transition: color 0.15s; }
-        .task-row:hover .drag-handle { color: #555; }
-
-        .checkbox { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #444; background: transparent; cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: background 0.18s, border-color 0.18s; }
-        .checkbox.checked { background: #6ee7f7; border-color: #6ee7f7; }
-        .checkmark { color: #0f0f13; font-size: 10px; font-weight: 700; }
-
-        .task-body { flex: 1; min-width: 0; }
-        .task-text { color: #e8e8f0; font-size: 13px; line-height: 1.4; cursor: pointer; padding: 2px 4px; border-radius: 4px; transition: background 0.15s; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .task-text:hover { background: #1e1e2a; }
-        .task-text.strikethrough { text-decoration: line-through; color: #555; }
-        .task-meta { display: flex; align-items: center; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
-
-        .edit-input { width: 100%; background: #1e1e2a; border: 1px solid #6ee7f7; border-radius: 6px; color: #e8e8f0; font-size: 13px; font-family: inherit; padding: 4px 8px; outline: none; }
-
-        .cat-badge { font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border-radius: 20px; font-weight: 500; flex-shrink: 0; }
-        .due-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
-        .priority-btn { background: none; border: 1px solid; border-radius: 4px; font-family: inherit; font-size: 9px; letter-spacing: 0.04em; padding: 2px 6px; cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
-        .priority-btn:hover { opacity: 0.75; }
-
-        .icon-btn { background: none; border: none; cursor: pointer; padding: 3px 5px; border-radius: 5px; color: #444; font-size: 13px; transition: color 0.15s, background 0.15s; flex-shrink: 0; }
-        .icon-btn:hover { color: #e8e8f0; background: #222; }
-        .icon-btn.delete:hover { color: #f97373; background: #2a1616; }
-
-        .filter-btn { background: transparent; border: 1px solid #2a2a35; color: #777; font-family: inherit; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; padding: 5px 12px; border-radius: 20px; cursor: pointer; transition: all 0.15s; }
-        .filter-btn:hover { border-color: #555; color: #ddd; }
-        .filter-btn.active { background: #1e1e2a; border-color: #6ee7f7; color: #6ee7f7; }
-
-        .add-input { flex: 1; background: #16161d; border: 1px solid #2a2a35; border-radius: 10px; color: #e8e8f0; font-size: 13px; font-family: inherit; padding: 11px 14px; outline: none; transition: border-color 0.2s; min-width: 0; }
-        .add-input:focus { border-color: #6ee7f7; }
-        .add-input::placeholder { color: #444; }
-
-        .search-wrap { position: relative; margin-bottom: 16px; }
-        .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: #444; font-size: 14px; pointer-events: none; }
-        .search-input { width: 100%; background: #16161d; border: 1px solid #2a2a35; border-radius: 10px; color: #e8e8f0; font-size: 13px; font-family: inherit; padding: 10px 14px 10px 36px; outline: none; transition: border-color 0.2s; }
-        .search-input:focus { border-color: #6ee7f7; }
-        .search-input::placeholder { color: #444; }
-
-        .mini-select { background: #16161d; border: 1px solid #2a2a35; border-radius: 8px; color: #aaa; font-size: 11px; font-family: inherit; padding: 8px; outline: none; cursor: pointer; }
-        .mini-select:focus { border-color: #6ee7f7; }
-
-        .due-input { background: #16161d; border: 1px solid #2a2a35; border-radius: 8px; color: #666; font-size: 11px; font-family: inherit; padding: 8px; outline: none; cursor: pointer; }
-        .due-input:focus { border-color: #6ee7f7; color: #e8e8f0; }
-        .due-input::-webkit-calendar-picker-indicator { filter: invert(0.3); }
-
-        .add-btn { background: #6ee7f7; border: none; border-radius: 10px; color: #0f0f13; font-size: 22px; font-weight: 700; width: 44px; height: 44px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s, transform 0.1s; flex-shrink: 0; }
-        .add-btn:hover { background: #9ef5ff; transform: scale(1.06); }
-        .add-btn:active { transform: scale(0.97); }
-
-        .progress-bar { height: 3px; background: #1e1e2a; border-radius: 4px; overflow: hidden; margin-top: 6px; }
-        .progress-fill { height: 100%; background: linear-gradient(90deg, #6ee7f7, #a5f3a0); border-radius: 4px; transition: width 0.4s ease; }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: 560 }}>
+      <div style={{ width: "100%", maxWidth: 580 }}>
 
         {/* Header */}
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
-            <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: 30, fontWeight: 800, color: "#e8e8f0", margin: 0, letterSpacing: "-0.02em" }}>MY TASKS</h1>
-            <span style={{ color: "#6ee7f7", fontSize: 12, letterSpacing: "0.1em" }}>{done}/{total} done</span>
+        <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
+              <h1 style={{ fontFamily: "'Syne', sans-serif", fontSize: 32, fontWeight: 800, color: textPrimary, margin: 0, letterSpacing: "-0.02em", transition: "color 0.3s" }}>MY TASKS</h1>
+              <span style={{ color: focusBorder, fontSize: 13, letterSpacing: "0.1em" }}>{done}/{total} done</span>
+            </div>
+            <div style={{ height: 3, background: progressBg, borderRadius: 4, overflow: "hidden", marginTop: 6, transition: "background 0.3s" }}>
+              <div style={{ height: "100%", width: total ? `${(done / total) * 100}%` : "0%", background: `linear-gradient(90deg, ${focusBorder}, #a5f3a0)`, borderRadius: 4, transition: "width 0.4s ease" }} />
+            </div>
           </div>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: total ? `${(done / total) * 100}%` : "0%" }} />
-          </div>
+
+          {/* Theme Toggle */}
+          <button onClick={toggleTheme} style={{ background: dark ? "#1e1e2a" : "#e2e8f0", border: `1px solid ${border}`, borderRadius: 20, padding: "6px 14px", cursor: "pointer", color: textSecondary, fontSize: 15, transition: "all 0.2s", marginLeft: 16, marginTop: 4, flexShrink: 0 }} title="Toggle light/dark">
+            {dark ? "☀️" : "🌙"}
+          </button>
         </div>
 
         {/* Add Row */}
         <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-          <input ref={inputRef} className="add-input" placeholder="Add a new task..." value={input}
-            onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && addTask()} />
-          <button className="add-btn" onClick={addTask}>+</button>
+          <input ref={inputRef}
+            style={{ flex: 1, background: inputBg, border: `1px solid ${inputBorder}`, borderRadius: 10, color: textPrimary, fontSize: 15, fontFamily: "inherit", padding: "12px 16px", outline: "none", transition: "border-color 0.2s, background 0.3s", minWidth: 0 }}
+            placeholder="Add a new task..."
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && addTask()}
+            onFocus={e => e.target.style.borderColor = focusBorder}
+            onBlur={e => e.target.style.borderColor = inputBorder}
+          />
+          <button onClick={addTask} style={{ background: addBtnBg, border: "none", borderRadius: 10, color: addBtnColor, fontSize: 22, fontWeight: 700, width: 48, height: 48, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", flexShrink: 0 }}>+</button>
         </div>
         <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
-          <select className="mini-select" value={newCat} onChange={e => setNewCat(e.target.value)}>
+          {["Work","Personal","Urgent"].map(c => (
+            <select key={c} style={{ display: "none" }} />
+          ))}
+          <select style={{ background: inputBg, border: `1px solid ${inputBorder}`, borderRadius: 8, color: textSecondary, fontSize: 13, fontFamily: "inherit", padding: "9px 8px", outline: "none", cursor: "pointer", transition: "background 0.3s" }} value={newCat} onChange={e => setNewCat(e.target.value)}>
             {CATEGORIES.filter(c => c !== "All").map(c => <option key={c} value={c}>{c}</option>)}
           </select>
-          <select className="mini-select" value={newPriority} onChange={e => setNewPriority(e.target.value)}>
+          <select style={{ background: inputBg, border: `1px solid ${inputBorder}`, borderRadius: 8, color: textSecondary, fontSize: 13, fontFamily: "inherit", padding: "9px 8px", outline: "none", cursor: "pointer", transition: "background 0.3s" }} value={newPriority} onChange={e => setNewPriority(e.target.value)}>
             {PRIORITIES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)} priority</option>)}
           </select>
-          <input type="date" className="due-input" value={newDue} onChange={e => setNewDue(e.target.value)} title="Due date (optional)" />
+          <input type="date" style={{ background: inputBg, border: `1px solid ${inputBorder}`, borderRadius: 8, color: textSecondary, fontSize: 13, fontFamily: "inherit", padding: "9px 8px", outline: "none", cursor: "pointer", transition: "background 0.3s" }} value={newDue} onChange={e => setNewDue(e.target.value)} />
         </div>
 
         {/* Search */}
-        <div className="search-wrap">
-          <span className="search-icon">⌕</span>
-          <input className="search-input" placeholder="Search tasks..." value={search} onChange={e => setSearch(e.target.value)} />
+        <div style={{ position: "relative", marginBottom: 16 }}>
+          <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", color: textSecondary, fontSize: 15, pointerEvents: "none" }}>⌕</span>
+          <input style={{ width: "100%", background: inputBg, border: `1px solid ${inputBorder}`, borderRadius: 10, color: textPrimary, fontSize: 15, fontFamily: "inherit", padding: "11px 14px 11px 36px", outline: "none", transition: "border-color 0.2s, background 0.3s" }}
+            placeholder="Search tasks..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onFocus={e => e.target.style.borderColor = focusBorder}
+            onBlur={e => e.target.style.borderColor = inputBorder}
+          />
         </div>
 
-        {/* Category Filters */}
+        {/* Filters */}
         <div style={{ display: "flex", gap: 6, marginBottom: 18, flexWrap: "wrap" }}>
           {CATEGORIES.map(c => (
-            <button key={c} className={`filter-btn ${filter === c ? "active" : ""}`} onClick={() => setFilter(c)}>{c}</button>
+            <button key={c} onClick={() => setFilter(c)}
+              style={{ background: filter === c ? filterActiveBg : "transparent", border: `1px solid ${filter === c ? filterActiveBorder : inputBorder}`, color: filter === c ? filterActiveColor : textSecondary, fontFamily: "inherit", fontSize: 12, letterSpacing: "0.06em", textTransform: "uppercase", padding: "6px 14px", borderRadius: 20, cursor: "pointer", transition: "all 0.15s" }}>
+              {c}
+            </button>
           ))}
         </div>
 
         {/* Task List */}
         <div>
           {filtered.length === 0 && (
-            <div style={{ textAlign: "center", color: "#444", fontSize: 12, padding: "40px 0", letterSpacing: "0.05em" }}>
+            <div style={{ textAlign: "center", color: textSecondary, fontSize: 13, padding: "40px 0", letterSpacing: "0.05em" }}>
               {search ? `NO RESULTS FOR "${search.toUpperCase()}"` : "NO TASKS HERE ✦"}
             </div>
           )}
@@ -236,49 +229,60 @@ export default function TodoApp() {
             const overdue = isOverdue(task.due) && !task.done;
             return (
               <div key={task.id}
-                className={[
-                  "task-row",
-                  task.done ? "done-row" : "",
-                  dragId === task.id ? "dragging" : "",
-                  dragOverId === task.id && dragId !== task.id ? "drag-over" : "",
-                  overdue ? "overdue-row" : ""
-                ].join(" ")}
                 draggable
                 onDragStart={e => onDragStart(e, task.id)}
                 onDragOver={e => onDragOver(e, task.id)}
                 onDrop={e => onDrop(e, task.id)}
                 onDragEnd={onDragEnd}
-              >
-                <span className="drag-handle">⠿</span>
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "14px 16px",
+                  background: cardBg,
+                  border: `1px solid ${dragOverId === task.id && dragId !== task.id ? focusBorder : border}`,
+                  borderLeft: overdue ? `3px solid ${priColors.high}88` : undefined,
+                  borderRadius: 10, marginBottom: 6,
+                  opacity: task.done ? 0.4 : dragId === task.id ? 0.3 : 1,
+                  boxShadow: dragOverId === task.id && dragId !== task.id ? `0 0 0 2px ${focusBorder}22` : dark ? "none" : "0 1px 4px rgba(0,0,0,0.06)",
+                  transition: "border-color 0.2s, box-shadow 0.2s, opacity 0.2s, background 0.3s",
+                  animation: "fadeIn 0.22s ease",
+                  cursor: "grab", userSelect: "none",
+                }}>
 
-                <div className={`checkbox ${task.done ? "checked" : ""}`} onClick={() => toggleDone(task.id)}>
-                  {task.done && <span className="checkmark">✓</span>}
+                {/* Drag handle */}
+                <span style={{ color: dragHandleColor, fontSize: 16, cursor: "grab", flexShrink: 0 }}>⠿</span>
+
+                {/* Checkbox */}
+                <div onClick={() => toggleDone(task.id)}
+                  style={{ width: 20, height: 20, borderRadius: "50%", border: `2px solid ${task.done ? focusBorder : border}`, background: task.done ? focusBorder : "transparent", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s" }}>
+                  {task.done && <span style={{ color: dark ? "#0f0f13" : "#fff", fontSize: 11, fontWeight: 700 }}>✓</span>}
                 </div>
 
-                <div className="task-body">
+                {/* Body */}
+                <div style={{ flex: 1, minWidth: 0 }}>
                   {editingId === task.id ? (
-                    <input ref={editRef} className="edit-input" value={editText}
+                    <input ref={editRef}
+                      style={{ width: "100%", background: editBg, border: `1px solid ${focusBorder}`, borderRadius: 6, color: textPrimary, fontSize: 15, fontFamily: "inherit", padding: "4px 8px", outline: "none" }}
+                      value={editText}
                       onChange={e => setEditText(e.target.value)}
                       onBlur={() => saveEdit(task.id)}
-                      onKeyDown={e => { if (e.key === "Enter") saveEdit(task.id); if (e.key === "Escape") setEditingId(null); }} />
+                      onKeyDown={e => { if (e.key === "Enter") saveEdit(task.id); if (e.key === "Escape") setEditingId(null); }}
+                    />
                   ) : (
-                    <span className={`task-text ${task.done ? "strikethrough" : ""}`}
-                      onDoubleClick={() => !task.done && startEdit(task)} title="Double-click to edit">
+                    <span onDoubleClick={() => !task.done && startEdit(task)} title="Double-click to edit"
+                      style={{ color: task.done ? textSecondary : textPrimary, fontSize: 15, lineHeight: 1.4, cursor: "pointer", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: task.done ? "line-through" : "none", transition: "color 0.3s" }}>
                       {task.text}
                     </span>
                   )}
-                  <div className="task-meta">
-                    <button className="priority-btn"
-                      style={{ color: PRIORITY_COLORS[task.priority], borderColor: PRIORITY_COLORS[task.priority] + "55" }}
-                      onClick={() => cyclePriority(task.id, task.priority)}
-                      title="Click to change priority">
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 5, flexWrap: "wrap" }}>
+                    <button onClick={() => cyclePriority(task.id, task.priority)} title="Click to change priority"
+                      style={{ background: "none", border: `1px solid ${priColors[task.priority]}55`, borderRadius: 4, fontFamily: "inherit", fontSize: 10, letterSpacing: "0.04em", padding: "2px 7px", cursor: "pointer", color: priColors[task.priority], transition: "all 0.15s" }}>
                       {PRIORITY_LABELS[task.priority]}
                     </button>
-                    <span className="cat-badge" style={{ background: `${CATEGORY_COLORS[task.category]}15`, color: CATEGORY_COLORS[task.category] || "#aaa", border: `1px solid ${CATEGORY_COLORS[task.category] || "#444"}33` }}>
+                    <span style={{ fontSize: 10, letterSpacing: "0.08em", textTransform: "uppercase", padding: "2px 8px", borderRadius: 20, fontWeight: 500, flexShrink: 0, background: `${catColors[task.category]}18`, color: catColors[task.category], border: `1px solid ${catColors[task.category]}33` }}>
                       {task.category}
                     </span>
                     {dueFmt && (
-                      <span className="due-badge" style={{ color: dueFmt.color, background: dueFmt.color + "18" }}>
+                      <span style={{ fontSize: 11, padding: "2px 6px", borderRadius: 4, color: dueFmt.color, background: dueFmt.color + "18", flexShrink: 0 }}>
                         ◷ {dueFmt.label}
                       </span>
                     )}
@@ -286,18 +290,16 @@ export default function TodoApp() {
                 </div>
 
                 {editingId !== task.id && (
-                  <button className="icon-btn" onClick={() => startEdit(task)} title="Edit">✎</button>
+                  <button onClick={() => startEdit(task)} style={{ background: "none", border: "none", cursor: "pointer", padding: "3px 5px", borderRadius: 5, color: iconColor, fontSize: 15, transition: "color 0.15s", flexShrink: 0 }}>✎</button>
                 )}
-                <button className="icon-btn delete" onClick={() => deleteTask(task.id)} title="Delete">✕</button>
+                <button onClick={() => deleteTask(task.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: "3px 5px", borderRadius: 5, color: iconColor, fontSize: 15, transition: "color 0.15s", flexShrink: 0 }}>✕</button>
               </div>
             );
           })}
         </div>
 
-        {/* Footer */}
-        <div style={{ textAlign: "center", color: "#2a2a35", fontSize: 10, marginTop: 28, letterSpacing: "0.07em", lineHeight: 2 }}>
-          DRAG ⠿ TO REORDER · DOUBLE-CLICK TO EDIT · CLICK PRIORITY TO CYCLE
-          <br />DATA AUTO-SAVED IN BROWSER
+        <div style={{ textAlign: "center", color: hintColor, fontSize: 10, marginTop: 28, letterSpacing: "0.07em", lineHeight: 2 }}>
+          DRAG ⠿ TO REORDER · DOUBLE-CLICK TO EDIT · CLICK PRIORITY TO CYCLE<br />DATA AUTO-SAVED IN BROWSER
         </div>
       </div>
     </div>
